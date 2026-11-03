@@ -46,11 +46,34 @@ pipeline {
                 '''
             }
         }
+
+        stage('Create Deployment Environment') {
+            steps {
+                echo 'Creating deployment Python environment'
+
+                bat '''
+                    powershell -NoProfile -ExecutionPolicy Bypass -Command "
+                        $target = 'C:\\ProgramData\\Jenkins\\deployments\\Python-Flask-CD'
+                        $venvPython = Join-Path $target '.venv\\Scripts\\python.exe'
+
+                        if (!(Test-Path $venvPython)) {
+                            python -m venv (Join-Path $target '.venv')
+                        }
+
+                        & $venvPython -m pip install -r (Join-Path $target 'requirements.txt')
+
+                        if ($LASTEXITCODE -ne 0) {
+                            exit $LASTEXITCODE
+                        }
+                    "
+                '''
+            }
+        }
     }
 
     post {
         success {
-            echo 'Flask CI pipeline and deployment preparation completed successfully!'
+            echo 'Flask CI and deployment preparation completed successfully!'
         }
 
         failure {
@@ -58,3 +81,4 @@ pipeline {
         }
     }
 }
+
