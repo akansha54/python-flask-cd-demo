@@ -1,0 +1,41 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Flask Login Application</title>
+</head>
+
+<body>
+
+    <h1>Welcome to Login Portal</h1>
+
+    <form method="POST" action="/">
+
+        <div>
+            <label>Username:</label>
+            <input type="text" id="username"
+                   name="username" placeholder="Enter Username">
+        </div>
+
+        <br>
+
+        <div>
+            <label>Password:</label>
+            <input type="password" id="password"
+                   name="password" placeholder="Enter Password">
+        </div>
+
+        <br>
+
+        <button type="submit" id="login">Login</button>
+
+    </form>
+
+    {% with messages = get_flashed_messages() %}
+        {% for message in messages %}
+            <p style="color:red">{{ message }}</p>
+        {% endfor %}
+    {% endwith %}
+
+</body>
+</html>
