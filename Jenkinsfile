@@ -69,16 +69,83 @@ pipeline {
                 '''
             }
         }
+
+        stage('Start Flask Application') {
+            steps {
+                echo 'Starting deployed Flask application'
+
+                bat '''
+                    powershell -NoProfile -ExecutionPolicy Bypass -Command "
+                        $target = 'C:\\ProgramData\\Jenkins\\deployments\\Python-Flask-CD'
+                        $waitress = Join-Path $target '.venv\\Scripts\\waitress-serve.exe'
+
+                        if (!(Test-Path $waitress)) {
+                            throw 'Waitress executable not found.'
+                        }
+
+                        $processes = Get-NetTCPConnection -LocalPort 5001 -State Listen -ErrorAction SilentlyContinue |
+                            Select-Object -ExpandProperty OwningProcess -Unique
+
+                        foreach ($listenerProcessId in $processes) {
+                            Stop-Process -Id $listenerProcessId -Force
+                        }
+
+                        Start-Sleep -Seconds 2
+
+                        Start-Process -FilePath $waitress `
+                            -ArgumentList '--listen=127.0.0.1:5001', 'app:app' `
+                            -WorkingDirectory $target `
+                            -WindowStyle Hidden `
+                            -RedirectStandardOutput (Join-Path $target 'app.log') `
+                            -RedirectStandardError (Join-Path $target 'error.log')
+
+                        Write-Host 'Flask application startup initiated.'
+                    "
+                '''
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                echo 'Checking deployed Flask application'
+
+                bat '''
+                    powershell -NoProfile -ExecutionPolicy Bypass -Command "
+                        $ready = $false
+
+                        for ($i = 0; $i -lt 15; $i++) {
+                            try {
+                                $response = Invoke-WebRequest 'http://127.0.0.1:5001/' -UseBasicParsing
+
+                                if ($response.StatusCode -eq 200) {
+                                    $ready = $true
+                                    break
+                                }
+                            }
+                            catch {
+                                Start-Sleep -Seconds 2
+                            }
+                        }
+
+                        if (!$ready) {
+                            throw 'Deployment verification failed. Check the application logs.'
+                        }
+
+                        Write-Host 'SUCCESS: Flask application is running on port 5001.'
+                    "
+                '''
+            }
+        }
     }
 
     post {
         success {
-            echo 'Flask CI and deployment preparation completed successfully!'
+            echo 'SUCCESS: CI and CD pipeline completed!'
+            echo 'Flask application deployed and verified.'
         }
 
         failure {
-            echo 'Pipeline failed. Please check the console output.'
+            echo 'FAILED: Please check Jenkins Console Output.'
         }
     }
 }
-
